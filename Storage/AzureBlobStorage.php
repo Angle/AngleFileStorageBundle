@@ -15,7 +15,7 @@ use MicrosoftAzure\Storage\Blob\Models\SetBlobPropertiesOptions;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-class AzureStorageBlob implements StorageInterface
+class AzureBlobStorage implements StorageInterface
 {
     const CONTAINER_NAME = '??'; // can only be lowercase // TODO: Read from service configuration
 
@@ -34,6 +34,10 @@ class AzureStorageBlob implements StorageInterface
 
         $this->initializeBlobClient();
     }
+
+    #########################
+    ##      INTERFACE      ##
+    #########################
 
     private function initializeBlobClient(): void
     {
@@ -154,6 +158,11 @@ class AzureStorageBlob implements StorageInterface
         return true;
     }
 
+
+
+    #########################
+    ##        CUSTOM       ##
+    #########################
 
     // INITIALIZATION ONLY METHODS
     /**

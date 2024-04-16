@@ -24,10 +24,10 @@ class Configuration implements ConfigurationInterface
         $rootNode
             ->children()
             ->scalarNode('type')->defaultValue('local')->end()
-            ->booleanNode('container')->defaultNull()->end()
+            ->scalarNode('container')->defaultNull()->end()
             ->scalarNode('username')->defaultNull()->end()
             ->scalarNode('secret')->defaultNull()->end()
-            ->booleanNode('aws_region')->defaultNull()->end()
+            ->scalarNode('aws_region')->defaultNull()->end()
         ;
 
         return $treeBuilder;

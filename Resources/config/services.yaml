@@ -14,3 +14,7 @@ services:
   Angle\FileStorageBundle\Service\FileStorage:
     arguments:
       $config: '%angle_file_storage%'
+      $kernelDir: '%kernel.project_dir%'
+
+  Angle\FileStorageBundle\Command\:
+    resource: '../../Command/'

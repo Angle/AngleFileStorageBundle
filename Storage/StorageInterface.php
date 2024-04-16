@@ -6,13 +6,48 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 interface StorageInterface
 {
-    public function exists();
+    /**
+     * Check if a file with the given Key already exists in the Storage
+     *
+     * @param string $key
+     * @return bool
+     */
+    public function exists(string $key): bool;
 
-    public function write();
+    /**
+     * Write (upload) file to the Storage
+     *
+     * @param $s3Key
+     * @param $content
+     * @param string $contentType MIME Type
+     * @param $originalName
+     * @return bool
+     */
+    public function write(string $key, $content, string $contentType = null, string $originalName = null): bool;
 
-    public function delete();
+    /**
+     * Delete a file from the Storage
+     *
+     * @param string $key
+     * @return mixed
+     */
+    public function delete(string $key);
 
-    public function getAsStreamedResponse(): StreamedResponse;
+    /**
+     * Get a file from the Storage as a StreamedResponse, ready to serve via HTTP
+     *
+     * @param string $key
+     * @return StreamedResponse
+     */
+    public function getAsStreamedResponse(string $key): StreamedResponse;
 
-    public function getAsDownloadResponse(): StreamedResponse;
+    /**
+     * Get a file from the Storage as a DownloadableStreamedResponse, ready to serve via HTTP and will automatically
+     * trigger a Content-Disposition header
+     *
+     * @param string $key
+     * @param string $downloadFileName
+     * @return StreamedResponse
+     */
+    public function getAsDownloadResponse(string $key, string $downloadFileName): StreamedResponse;
 }

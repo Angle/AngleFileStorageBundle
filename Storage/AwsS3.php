@@ -65,6 +65,12 @@ class AwsS3 implements StorageInterface
         $this->s3Client = $s3Client;
     }
 
+
+    public function exists(string $key): bool
+    {
+        return $this->s3Client->doesObjectExist($this->bucket, $key);
+    }
+
     /**
      * Writes a file in S3
      *
