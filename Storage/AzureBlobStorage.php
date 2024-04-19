@@ -10,6 +10,7 @@ use MicrosoftAzure\Storage\Blob\Models\BlobAccessPolicy;
 use MicrosoftAzure\Storage\Blob\Models\ContainerACL;
 use MicrosoftAzure\Storage\Blob\Models\GetBlobOptions;
 use MicrosoftAzure\Storage\Blob\Models\GetBlobResult;
+use MicrosoftAzure\Storage\Blob\Models\ListBlobsOptions;
 use MicrosoftAzure\Storage\Blob\Models\SetBlobPropertiesOptions;
 
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -17,36 +18,54 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class AzureBlobStorage implements StorageInterface
 {
-    const CONTAINER_NAME = '??'; // can only be lowercase // TODO: Read from service configuration
-
     public const ACL_NONE = '';
     public const ACL_BLOB = 'blob';
     public const ACL_CONTAINER = 'container';
 
     protected ?string $connectionString;
+    protected ?string $container;
 
     /** @var BlobRestProxy $blobClient */
-    protected $blobClient;
+    protected ?BlobRestProxy $blobClient;
 
-    public function __construct(string $connectionString)
+    public function __construct(string $accountName, string $accountKey, string $containerName)
     {
-        $this->connectionString = $connectionString;
+        // Build the connection string
+        $this->connectionString = sprintf('"DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net', $accountName, $accountKey);
+        $this->container = $containerName;
 
         $this->initializeBlobClient();
     }
+
+    private function initializeBlobClient(): void
+    {
+        try {
+            $this->blobClient = BlobRestProxy::createBlobService($this->connectionString);
+        } catch (\Throwable $e) {
+            throw new \RuntimeException("Azure Blob Storage failed to initialize: " . $e->getMessage());
+        }
+    }
+
 
     #########################
     ##      INTERFACE      ##
     #########################
 
-    private function initializeBlobClient(): void
+    public function exists(string $key): bool
     {
-        $this->blobClient = BlobRestProxy::createBlobService($this->connectionString);
+        $options = new ListBlobsOptions();
+        $options->setPrefix($key);
+        $options->setMaxResults(1);
+        $options->setIncludeDeleted(false);
+
+        $blobList = $this->blobClient->listBlobs($this->container,$options);
+
+        return (count($blobList->getBlobs()) > 0);
     }
 
-    public function writeBlob($content, string $blobKey, $contentType = null, $attachmentFilename = null): string
+    public function write(string $key, $content, $contentType = null, $originalName = null): bool
     {
-        $this->blobClient->createBlockBlob(self::CONTAINER_NAME, $blobKey, $content);
+        $this->blobClient->createBlockBlob($this->container, $key, $content);
 
         // Configure Blob Options
         $blobOptions = new SetBlobPropertiesOptions();
@@ -56,46 +75,46 @@ class AzureBlobStorage implements StorageInterface
         // if specific ContentType wishes to be specified for different file dispositions.
         if ($contentType) $blobOptions->setContentType($contentType);
         // In case of download disposition files, ensure FileName set as desired
-        if ($attachmentFilename) {
+        if ($originalName) {
 
             // clean up the filename
             setlocale(LC_ALL, 'en_US.UTF-8');
-            $extension = pathinfo($attachmentFilename, PATHINFO_EXTENSION);
-            $nameWithoutExtension = substr($attachmentFilename, 0, -1-strlen($extension));
+            $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+            $nameWithoutExtension = substr($originalName, 0, -1-strlen($extension));
             $attachmentFilename = SlugUtility::slugify($nameWithoutExtension, 120) . '.' . $extension; // this will also shorten it if too long
 
             $blobOptions->setContentDisposition('attachment; filename=' . $attachmentFilename);
         }
 
         $this->blobClient->setBlobProperties(
-            self::CONTAINER_NAME,
-            $blobKey,
+            $this->container,
+            $key,
             $blobOptions
         );
 
-        return $blobKey;
+        return true;
     }
 
     /**
      * @param string $blobKey
      * @return GetBlobResult
      */
-    public function getBlob(string $blobKey): GetBlobResult
+    private function getBlob(string $blobKey): GetBlobResult
     {
-        return $this->blobClient->getBlob(self::CONTAINER_NAME, $blobKey);
+        return $this->blobClient->getBlob($this->container, $blobKey);
     }
 
     /**
      * Get a blob from Azure, return a StreamedResponse ready to be served as a stream
      *
-     * @param string $blobKey
+     * @param string $key
      * @throws \Exception
      * @return StreamedResponse
      */
-    public function getBlobAsStreamedResponse(string $blobKey): StreamedResponse
+    public function getAsStreamedResponse(string $key): StreamedResponse
     {
         try {
-            $r = $this->getBlob($blobKey);
+            $r = $this->getBlob($key);
         } catch (NotFoundHttpException $e) {
             throw $e;
         } catch (\Exception $e) {
@@ -118,15 +137,15 @@ class AzureBlobStorage implements StorageInterface
     /**
      * Get a blob from Azure, return a StreamedResponse ready to download
      *
-     * @param string $blobKey
-     * @param string $filename name to download the file as
+     * @param string $key
+     * @param string $downloadFileName name to download the file as
      * @throws \Exception
      * @return StreamedResponse
      */
-    public function getBlobAsStreamedResponseForDownload(string $blobKey, string $filename): StreamedResponse
+    public function getAsDownloadResponse(string $key, string $downloadFileName): StreamedResponse
     {
         try {
-            $r = $this->getBlob($blobKey);
+            $r = $this->getBlob($key);
         } catch (NotFoundHttpException $e) {
             throw $e;
         } catch (\Exception $e) {
@@ -138,26 +157,25 @@ class AzureBlobStorage implements StorageInterface
         $contentType = $r->getProperties()->getContentType();
 
         $response = new StreamedResponse();
-        $response->setCallback(function () use ($contentType, $body, $filename) {
+        $response->setCallback(function () use ($contentType, $body, $downloadFileName) {
             header("Content-Type: {$contentType}");
-            header("Content-Disposition: attachment; filename=\"{$filename}\"");
+            header("Content-Disposition: attachment; filename=\"{$downloadFileName}\"");
             echo $body;
         });
 
         return $response;
     }
 
-    public function deleteBlob(string $blobKey): bool
+    public function delete(string $key): bool
     {
         try {
-            $this->blobClient->deleteBlob(self::CONTAINER_NAME, $blobKey);
+            $this->blobClient->deleteBlob($this->container, $key);
         } catch (\Throwable $e) {
             return false;
         }
 
         return true;
     }
-
 
 
     #########################
@@ -171,7 +189,7 @@ class AzureBlobStorage implements StorageInterface
      */
     public function createBlobContainer(): void
     {
-        $this->blobClient->createContainer(self::CONTAINER_NAME);
+        $this->blobClient->createContainer($this->container);
     }
 
     /**
@@ -189,7 +207,7 @@ class AzureBlobStorage implements StorageInterface
         $blobAcl->setPublicAccess($acl);
 
         $this->blobClient->setContainerAcl(
-            self::CONTAINER_NAME,
+            $this->container,
             $blobAcl
         );
 
@@ -203,7 +221,7 @@ class AzureBlobStorage implements StorageInterface
      */
     public function listBlobsInContainer()
     {
-        $blobResults = $this->blobClient->listBlobs(self::CONTAINER_NAME);
+        $blobResults = $this->blobClient->listBlobs($this->container);
 
         return $blobResults->getBlobs();
     }

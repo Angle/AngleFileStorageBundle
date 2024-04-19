@@ -4,9 +4,9 @@ namespace Angle\FileStorageBundle\Storage;
 
 use Angle\Utilities\SlugUtility;
 
-use Aws\S3\S3Client;
-use Aws\Credentials\Credentials;
 use Aws\Exception\AwsException;
+use Aws\Credentials\Credentials;
+use Aws\S3\S3Client;
 use Aws\S3\Exception\S3Exception;
 
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -45,10 +45,10 @@ class AwsS3 implements StorageInterface
     }
 
 
-    private function initializeS3Client()
+    private function initializeS3Client(): void
     {
         if (!($this->credentials instanceof Credentials)) {
-            throw new \RuntimeException("Credentials were not specified");
+            throw new \RuntimeException("AWS S3 Credentials were not specified");
         }
 
         // Must specify signature version
@@ -60,11 +60,19 @@ class AwsS3 implements StorageInterface
             'debug'         => false
         );
 
-        $s3Client = new S3Client($config);
+        try {
+            $s3Client = new S3Client($config);
+        } catch (\Throwable $e) {
+            throw new \RuntimeException("AWS S3 failed to initialize: " . $e->getMessage());
+        }
 
         $this->s3Client = $s3Client;
     }
 
+
+    #########################
+    ##      INTERFACE      ##
+    #########################
 
     public function exists(string $key): bool
     {
@@ -76,20 +84,21 @@ class AwsS3 implements StorageInterface
      *
      * @param $key
      * @param $content
-     * @param bool $public
      * @param null $contentType
-     * @param null $attachmentFilename
+     * @param null $originalName
      * @return bool
      * @throws \Exception
      */
-    public function s3WriteObject($key, $content, $public = false, $contentType = null, $attachmentFilename = null)
+    public function write($key, $content, $contentType = null, $originalName = null): bool
     {
         // Check if file exists already
         if ($this->s3Client->doesObjectExist($this->bucket, $key)) {
-            throw new \Exception("Un archivo con el mismo nombre ya existe, por favor verifica esta operación.");
+            throw new \Exception("AWS S3 FileStorage error: an object already exists for the given Key.");
         }
 
         // Public accessible or not
+        // by default all files will be configured as private
+        $public = false;
         $acl = ($public ? 'public-read' : 'private');
 
         // Define options for upload
@@ -103,7 +112,7 @@ class AwsS3 implements StorageInterface
         // if specific ContentType wishes to be specified for different file dispositions.
         if ($contentType) $options['ContentType'] = $contentType;
         // In case of download disposition files, ensure FileName set as desired
-        if ($attachmentFilename) $options['ContentDisposition'] = 'attachment; filename=' . $attachmentFilename;
+        if ($originalName) $options['ContentDisposition'] = 'attachment; filename=' . $originalName;
 
         // Upload a file. The file size, file type, and MD5 hash
         // are automatically calculated by the SDK.
@@ -114,7 +123,7 @@ class AwsS3 implements StorageInterface
             // The AWS error code (e.g., )
             // $e->getAwsErrorCode();
             // $e->getMessage();
-            throw new \Exception('La carga del archivo falló: ' . $e->getMessage());
+            throw new \Exception('AWS S3 FileStorage failed: ' . $e->getMessage());
         }
 
         return true;
@@ -127,11 +136,11 @@ class AwsS3 implements StorageInterface
      * @throws \Exception
      * @return \Aws\Result
      */
-    public function s3GetObject($key): \Aws\Result
+    private function s3GetObject($key): \Aws\Result
     {
         // Check if file exists already
         if (!$this->s3Client->doesObjectExist($this->bucket, $key)) {
-            throw new NotFoundHttpException('Object key does not exist.');
+            throw new NotFoundHttpException('AWS S3 FileStorage: object key does not exist.');
         }
 
         return $this->s3Client->getObject([
@@ -147,7 +156,7 @@ class AwsS3 implements StorageInterface
      * @throws \Exception
      * @return StreamedResponse
      */
-    public function s3GetObjectAsStreamedResponse($key): StreamedResponse
+    public function getAsStreamedResponse(string $key): StreamedResponse
     {
         try {
             $r = $this->s3GetObject($key);
@@ -175,11 +184,11 @@ class AwsS3 implements StorageInterface
      * Get a file from S3, returns a StreamedResponse ready to download
      *
      * @param string $key S3 object key
-     * @param string $filename name to download the file as
+     * @param string $downloadFileName name to download the file as
      * @throws \Exception
      * @return StreamedResponse
      */
-    public function s3GetObjectAsStreamedResponseForDownload($key, $filename): StreamedResponse
+    public function getAsDownloadResponse(string $key, string $downloadFileName): StreamedResponse
     {
         try {
             $r = $this->s3GetObject($key);
@@ -195,16 +204,20 @@ class AwsS3 implements StorageInterface
         $contentType = $r['ContentType'];
 
         $response = new StreamedResponse();
-        $response->setCallback(function () use ($contentType, $body, $filename) {
+        $response->setCallback(function () use ($contentType, $body, $downloadFileName) {
             header("Content-Type: {$contentType}");
-            header("Content-Disposition: attachment; filename=\"{$filename}\"");
+            header("Content-Disposition: attachment; filename=\"{$downloadFileName}\"");
             echo $body;
         });
 
         return $response;
     }
 
-    public function s3DeleteObject($key): bool
+    /**
+     * @param string $key
+     * @return bool
+     */
+    public function delete(string $key): bool
     {
         // Define options for deletion
         $options = array(
@@ -227,13 +240,17 @@ class AwsS3 implements StorageInterface
     }
 
 
-    public function s3GetObjectUrl($key)
+    #########################
+    ##        CUSTOM       ##
+    #########################
+
+    public function s3GetObjectUrl($key): string
     {
         return $this->s3Client->getObjectUrl($this->bucket,$key);
     }
 
 
-    public function s3ListObjects($prefix = '', $delimiter = '')
+    public function s3ListObjects($prefix = '', $delimiter = ''): array
     {
         // Define options for listing
         $options = array(
@@ -269,7 +286,7 @@ class AwsS3 implements StorageInterface
      * @param $key
      * @return bool
      */
-    public function s3IsDirectory($key)
+    public function s3IsDirectory($key): bool
     {
         $result = $this->s3Client->listObjects(array(
             'Bucket'  => $this->bucket,

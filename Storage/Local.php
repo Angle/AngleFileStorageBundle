@@ -36,7 +36,7 @@ class Local implements StorageInterface
         // try to access the directory
         if (!is_dir($this->directory)) {
             if (!mkdir($this->directory, 0755, true)) {
-                throw new \RuntimeException('Cannot access Local directory for FileStorage');
+                throw new \RuntimeException('Local FileStorage: Cannot access Local directory for FileStorage');
             }
         }
 
@@ -75,7 +75,7 @@ class Local implements StorageInterface
     /**
      * @inheritDoc
      */
-    public function delete(string $key)
+    public function delete(string $key): bool
     {
         $r = unlink($this->getFileName($key));
 

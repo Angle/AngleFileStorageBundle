@@ -20,7 +20,7 @@ class FileStorage implements StorageInterface
     public function __construct($config, string $kernelDir)
     {
         if (!StorageType::exists($config['type'])) {
-            throw new \RuntimeException('Unknown StorageType: ' . $config['type']);
+            throw new \RuntimeException('Unknown FileStorageType: ' . $config['type']);
         }
 
         $this->type = $config['type'];
@@ -30,10 +30,10 @@ class FileStorage implements StorageInterface
             $this->storage = new Local($config['container'], $kernelDir);
 
         } elseif ($this->type == StorageType::AWS_S3) {
-            $this->storage = new AwsS3();
+            $this->storage = new AwsS3($config['username'], $config['secret'], $config['container'], $config['aws_region']);
 
         } elseif ($this->type == StorageType::AZURE_BLOB_STORAGE) {
-            $this->storage = new AzureBlobStorage();
+            $this->storage = new AzureBlobStorage($config['username'], $config['secret'], $config['container']);
         }
     }
 
@@ -67,7 +67,7 @@ class FileStorage implements StorageInterface
     /**
      * @inheritDoc
      */
-    public function delete(string $key)
+    public function delete(string $key): bool
     {
         return $this->storage->delete($key);
     }
@@ -88,4 +88,14 @@ class FileStorage implements StorageInterface
         return $this->storage->getAsDownloadResponse($key, $downloadFileName);
     }
 
+
+
+    #########################
+    ##      EXTENSION      ##
+    #########################
+
+    public function getStorageEngine(): StorageInterface
+    {
+        return $this->storage;
+    }
 }

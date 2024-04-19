@@ -29,9 +29,9 @@ interface StorageInterface
      * Delete a file from the Storage
      *
      * @param string $key
-     * @return mixed
+     * @return bool
      */
-    public function delete(string $key);
+    public function delete(string $key): bool;
 
     /**
      * Get a file from the Storage as a StreamedResponse, ready to serve via HTTP
@@ -50,4 +50,7 @@ interface StorageInterface
      * @return StreamedResponse
      */
     public function getAsDownloadResponse(string $key, string $downloadFileName): StreamedResponse;
+
+    // TODO: list()
+    // public function list(string $path): array;
 }

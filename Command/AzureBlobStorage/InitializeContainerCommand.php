@@ -16,8 +16,8 @@ class InitializeContainerCommand extends Command
 {
     protected static $defaultName = 'angle:file-storage:azure-blob-storage:initialize-container';
 
-    /** @var AzureBlobStorage $fileStorage */
-    private AzureBlobStorage $fileStorage;
+    /** @var FileStorage $fileStorage */
+    private FileStorage $fileStorage;
 
     public function __construct(FileStorage $fileStorage)
     {
@@ -27,7 +27,7 @@ class InitializeContainerCommand extends Command
             throw new \RuntimeException('Cannot initialize an AzureBlobStorage Container when the Storage engine is not type Azure');
         }
 
-        if (!($fileStorage instanceof AzureBlobStorage)) {
+        if (!($fileStorage->getStorageEngine() instanceof AzureBlobStorage)) {
             throw new \RuntimeException('Cannot initialize an AzureBlobStorage Container when the Storage engine is not an AzureBlobStorage instance');
         }
 
@@ -53,8 +53,10 @@ class InitializeContainerCommand extends Command
 
 
         try {
-            $this->fileStorage->createBlobContainer();
-            $this->fileStorage->setBlobContainerAcl(AzureBlobStorage::ACL_NONE); // no public access allowed
+            /** @var AzureBlobStorage $engine */
+            $engine = $this->fileStorage->getStorageEngine();
+            $engine->createBlobContainer();
+            $engine->setBlobContainerAcl(AzureBlobStorage::ACL_NONE); // no public access allowed
         } catch (\Throwable $e) {
             $io->error('Unable to initialize default container: ' . $e->getMessage());
             return Command::FAILURE;
