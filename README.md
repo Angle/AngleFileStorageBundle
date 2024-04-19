@@ -1,59 +1,71 @@
 # Angle FileStorage Bundle
 Multi-backend file storage bundle. Supported backends: local, AWS S3, Azure Storage Blob.
 
-Supported types
-`local`
-`aws_s3`
-`azure_blob_storage`
+Supported types:
+- `local`
+- `aws_s3`
+- `azure_blob_storage`
 
-configuration
-->scalarNode('type')->defaultValue('local')->end()
-->scalarNode('container')->defaultNull()->end()
-->scalarNode('username')->defaultNull()->end()
-->scalarNode('secret')->defaultNull()->end()
-->scalarNode('aws_region')->defaultNull()->end()
+create a configuration file in `symfony/config/packages/angle_file_storage.yaml`:
+
+```yaml
+angle_file_storage:
+    type: local
+    container: file-storage
+    username: null
+    secret: null
+    aws_region: null
+```
+
+or link it to the `.env` variables:
+
+```yaml
+angle_file_storage:
+  type: "%env(ANGLE_FILE_STORAGE_TYPE)%"
+  container: "%env(ANGLE_FILE_STORAGE_CONTAINER)%"
+  username: "%env(ANGLE_FILE_STORAGE_USERNAME)%"
+  secret: "%env(ANGLE_FILE_STORAGE_SECRET)%"
+  aws_region: "%env(ANGLE_FILE_STORAGE_AWS_REGION)%"
+```
+
+and then in the `.env` add:
+
+```dotenv
+###> angle/file-storage-bundle ###
+ANGLE_FILE_STORAGE_TYPE="local"
+ANGLE_FILE_STORAGE_CONTAINER="container_or_path"
+ANGLE_FILE_STORAGE_USERNAME="myusername"
+ANGLE_FILE_STORAGE_SECRET="mysecret"
+ANGLE_FILE_STORAGE_AWS_REGION=null
+###< angle/file-storage-bundle ###
+```
 
 ### Local
-type=local
-container=path/to/files
+```yaml
+angle_file_storage:
+    type: local
+    container: path/to/files
+```
 
-if path is absolute, it will be taken as is.
-if path is relative, it will be inside symfony/var/ folder
+- if path is absolute, it will be taken as is.
+- if path is relative, it will be created inside `symfony/var/` 
 
 ### Azure
-
-AZURE_STORAGE_BLOB_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=yourAccount;AccountKey=yourKey
+```yaml
+angle_file_storage:
+    type: azure_blob_storage
+    container: azure_blob_container_name
+    username: azure_account_name
+    secret: azure_account_key
+```
 
 
 ### AWS
-
-type=aws_s3
-container=aws_s3_bucket_name
-username=aws_s3_access_key
-secret=aws_s3_secret_access_key
-aws_region=aws_s3_bucket_region
-
-
-
-aws_s3_access_key=MYACESSKEY
-aws_s3_secret_access_key=MYSECRETPASSWORD
-aws_s3_bucket=bucketname
-aws_s3_bucket_region=region
-
-
-
-
-    App\Service\DocumentStorage:
-        arguments:
-            $storageType: '%env(storage_type)%'
-
-    App\Service\Aws:
-        arguments:
-            $accessKey: '%env(aws_s3_access_key)%'
-            $secretKey: '%env(aws_s3_secret_access_key)%'
-            $bucket: '%env(aws_s3_bucket)%'
-            $bucketRegion: '%env(aws_s3_bucket_region)%'
-
-    App\Service\AzureStorageBlob:
-        arguments:
-            $connectionString: '%env(AZURE_STORAGE_BLOB_CONNECTION_STRING)%'
+```yaml
+angle_file_storage:
+    type: aws_s3
+    container: aws_s3_bucket_name
+    username: aws_s3_access_key
+    secret: aws_s3_secret_access_key
+    aws_region: aws_s3_bucket_region
+```
