@@ -85,7 +85,7 @@ class FileStorage implements StorageInterface
      */
     public function getAsDownloadResponse(string $key, string $downloadFileName): StreamedResponse
     {
-        return $this->storage->getAsDownloadResponse($key);
+        return $this->storage->getAsDownloadResponse($key, $downloadFileName);
     }
 
 }
