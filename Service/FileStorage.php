@@ -69,7 +69,7 @@ class FileStorage implements StorageInterface
      */
     public function delete(string $key)
     {
-
+        return $this->storage->delete($key);
     }
 
     /**
@@ -77,7 +77,7 @@ class FileStorage implements StorageInterface
      */
     public function getAsStreamedResponse(string $key): StreamedResponse
     {
-
+        return $this->storage->getAsStreamedResponse($key);
     }
 
     /**
@@ -85,7 +85,7 @@ class FileStorage implements StorageInterface
      */
     public function getAsDownloadResponse(string $key, string $downloadFileName): StreamedResponse
     {
-
+        return $this->storage->getAsDownloadResponse($key);
     }
 
 }
