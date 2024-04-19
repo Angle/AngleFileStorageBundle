@@ -59,8 +59,14 @@ class Local implements StorageInterface
     /**
      * @inheritDoc
      */
-    public function write(string $key, $content, $contentType = null, $attachmentFilename = null): bool
+    public function write(string $key, $content, $contentType = null, $originalName = null): bool
     {
+        // TODO: check if the path exists before trying to write the file
+        // Check if directory exists
+        if (!is_dir($this->getFileDirectory($key))) {
+            mkdir($this->getFileDirectory($key), 0755, true);
+        }
+
         $r = file_put_contents($this->getFileName($key), $content);
 
         return ($r !== false);
@@ -81,6 +87,7 @@ class Local implements StorageInterface
      */
     public function getAsStreamedResponse(string $key): StreamedResponse
     {
+        // Infer the MIME Type from the file (using ext-fileinfo)
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
         $contentType = finfo_file($finfo, $this->getFileName($key));
         finfo_close($finfo);
@@ -105,6 +112,7 @@ class Local implements StorageInterface
      */
     public function getAsDownloadResponse(string $key, string $downloadFileName): StreamedResponse
     {
+        // Infer the MIME Type from the file (using ext-fileinfo)
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
         $contentType = finfo_file($finfo, $this->getFileName($key));
         finfo_close($finfo);
@@ -138,6 +146,16 @@ class Local implements StorageInterface
     private function getFileName(string $key): string
     {
         return $this->directory . '/' . $key;
+    }
+
+    /**
+     * Find the directory where a file resides
+     * @param string $filepath
+     * @return string
+     */
+    private function getFileDirectory(string $key): string
+    {
+        return dirname($this->getFileName($key));
     }
 
 }

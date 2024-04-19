@@ -1,6 +1,10 @@
 # Angle FileStorage Bundle
 Multi-backend file storage bundle. Supported backends: local, AWS S3, Azure Storage Blob.
 
+Supported types
+`local`
+`aws_s3`
+`azure_blob_storage`
 
 configuration
 ->scalarNode('type')->defaultValue('local')->end()
