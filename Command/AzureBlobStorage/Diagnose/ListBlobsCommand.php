@@ -23,14 +23,6 @@ class ListBlobsCommand extends Command
     {
         parent::__construct();
 
-        if ($fileStorage->getType() !== StorageType::AZURE_BLOB_STORAGE) {
-            throw new \RuntimeException('Cannot initialize an AzureBlobStorage Container when the Storage engine is not type Azure');
-        }
-
-        if (!($fileStorage->getStorageEngine() instanceof AzureBlobStorage)) {
-            throw new \RuntimeException('Cannot initialize an AzureBlobStorage Container when the Storage engine is not an AzureBlobStorage instance');
-        }
-
         $this->fileStorage = $fileStorage;
     }
 
@@ -45,6 +37,14 @@ class ListBlobsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        if ($this->fileStorage->getType() !== StorageType::AZURE_BLOB_STORAGE) {
+            throw new \RuntimeException('Cannot initialize an AzureBlobStorage Container when the Storage engine is not type Azure');
+        }
+
+        if (!($this->fileStorage->getStorageEngine() instanceof AzureBlobStorage)) {
+            throw new \RuntimeException('Cannot initialize an AzureBlobStorage Container when the Storage engine is not an AzureBlobStorage instance');
+        }
+
         // Save the starting time to compute duration of command
         $startTimeProcess = microtime(true);
 
